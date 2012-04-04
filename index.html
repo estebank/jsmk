@@ -21,7 +21,6 @@ jsmk.Animation.prototype.nextFrame = function() {
 };
 
 jsmk.Animation.prototype.clear = function() {
-	console.log("clear");
 	this.current_frame = 0;
 };
 
@@ -150,12 +149,6 @@ jsmk.Player.prototype.eventListener = function(event) {
 	} else if (event.kick) {
 		this.changeState(jsmk.player_states.KICK);
 	} else {
-		this.changeState(jsmk.player_states.IDLE);
-	}
-
-	if (this.state == jsmk.player_states.IDLE
-		|| this.state == jsmk.player_states.MOVE_RIGHT
-		|| this.state == jsmk.player_states.MOVE_LEFT) {
 		if (event.empty()) {
 			this.changeState(jsmk.player_states.IDLE);
 		} else if (event.move_right) {
@@ -200,9 +193,16 @@ jsmk.Player.prototype.draw = function(ctx){
 	if (this.state == jsmk.player_states.MOVE_LEFT && this.facing == jsmk.playerFacingPosition.LEFT) {
 		state = jsmk.player_states.MOVE_RIGHT;
 	}
+	if (this.state == jsmk.player_states.MOVE_RIGHT && this.facing == jsmk.playerFacingPosition.RIGHT) {
+		state = jsmk.player_states.MOVE_RIGHT;
+	}
+	if (this.state == jsmk.player_states.MOVE_LEFT && this.facing == jsmk.playerFacingPosition.RIGHT) {
+		state = jsmk.player_states.MOVE_LEFT;
+	}
 	var frame = this.character.nextFrame(state);
 	this.width = frame.width;
 	if (this.facing == jsmk.playerFacingPosition.LEFT) {
+		// Mirror sprite if player is on the right.
 		ctx.translate(ctx.canvas.width, 0);
 		ctx.scale(-1, 1);
 		ctx.drawImage(frame, ctx.canvas.width - this.position - frame.width / 2, jsmk.TOP, frame.width, frame.height);
@@ -229,7 +229,7 @@ jsmk.Controller.prototype.tick = function() {
 };
 
 jsmk.Controller.prototype.punch = function() {
-	if (this._punch_times < 5) {
+	if (this._punch_times < 7) {
 		this.event.punch = true;
 		this._punch_times += 1;
 	} else {
@@ -239,7 +239,7 @@ jsmk.Controller.prototype.punch = function() {
 };
 
 jsmk.Controller.prototype.kick = function() {
-	if (this._kick_times < 6) {
+	if (this._punch_times < 6) {
 		this.event.kick = true;
 		this._kick_times += 1;
 	} else {
@@ -268,6 +268,7 @@ jsmk.PingPongController.prototype.bind = function(player) {
 };
 
 jsmk.PingPongController.prototype.tick = function() {
+console.log(this.current_direction)
 	var previous_event = this.controller.event;
 	this.controller.event = new jsmk.PlayerEvent();
 	this.controller.event.punch = previous_event.punch;
@@ -276,9 +277,6 @@ jsmk.PingPongController.prototype.tick = function() {
 	}
 	if (previous_event.kick) {
 		this.controller.kick();
-		if (this.controller._kick_times > 9) {
-			this.controller.event.kick = false;
-		}
 	}
 	if (this.controller.player.position >= this.controller.player.width / 2 &&
 		this.current_direction == jsmk.player_states.MOVE_LEFT) {
@@ -300,15 +298,11 @@ jsmk.KeyboardController = function() {
 	this.controller = new jsmk.Controller();
 	var self = this;
 	window.onkeydown = function(e) {
-		console.log(e, self);
 		switch (e.keyCode) {
 		case 39:  // Right
-			console.log("right");
 			self.controller.event.move_right = true;
-			console.log(self.controller.event);
 			break;
 		case 37:  // Left
-			console.log("left");
 			self.controller.event.move_left = true;
 			break;
 		case 65:  // A/Punch
@@ -320,11 +314,9 @@ jsmk.KeyboardController = function() {
 		}
 	}
 	window.onkeyup = function(e) {
-		console.log(e, self);
 		switch (e.keyCode) {
 		case 39:  // Right
 			self.controller.event.move_right = false;
-			console.log(self.controller.event);
 			break;
 		case 37:  // Left
 			self.controller.event.move_left = false;
@@ -348,15 +340,9 @@ jsmk.KeyboardController.prototype.tick = function() {
 	this.controller.event = new jsmk.PlayerEvent();
 	if (previous_event.punch) {
 		this.controller.punch();
-		if (this.controller._punch_times > 9) {
-			this.controller.event.punch = false;
-		}
 	}
 	if (previous_event.kick) {
 		this.controller.kick();
-		if (this.controller._kick_times > 9) {
-			this.controller.event.kick = false;
-		}
 	}
 	this.controller.event.move_right = previous_event.move_right;
 	this.controller.event.move_left = previous_event.move_left;
@@ -379,7 +365,7 @@ jsmk.defaultPositionPlayer2 = 300;
 jsmk.World = function(canvas) {
 	this.player1 = new jsmk.Player(jsmk.characters.Kano(), new jsmk.KeyboardController(), jsmk.defaultPositionPlayer1, jsmk.playerFacingPosition.RIGHT);
 	this.player2 = new jsmk.Player(jsmk.characters.SubZero(), new jsmk.PingPongController(), jsmk.defaultPositionPlayer2, jsmk.playerFacingPosition.LEFT);
-
+	
 	var mapImage = new Image();
 	mapImage.src = 'pic.png';
 	this.map = new jsmk.Map(mapImage);
@@ -410,7 +396,7 @@ jsmk.World.prototype.go = function() {
 	var previous_time = 0;
 	(function doDraw(time){
 		webkitRequestAnimationFrame(doDraw);
-		if ((time - previous_time) > 50) {
+		if ((time - previous_time) > 70) {
 			previous_time = time;
 			world.draw();
 		}
