@@ -161,11 +161,13 @@ jsmk.Player.prototype.move = function() {
 	}
 };
 
-jsmk.Player.prototype.draw = function(ctx){
+jsmk.Player.prototype.update = function() {
 	this.controller.tick();
 	this.move()
-	var state = this.state;
+};
 
+jsmk.Player.prototype.draw = function(ctx){
+	var state = this.state;
 	if (this.state == jsmk.player_states.MOVE_RIGHT && this.facing == jsmk.playerFacingPosition.LEFT) {
 		state = jsmk.player_states.MOVE_LEFT;
 	}
@@ -178,6 +180,7 @@ jsmk.Player.prototype.draw = function(ctx){
 	if (this.state == jsmk.player_states.MOVE_LEFT && this.facing == jsmk.playerFacingPosition.RIGHT) {
 		state = jsmk.player_states.MOVE_LEFT;
 	}
+	
 	var frame = this.character.nextFrame(state);
 	this.width = frame.width;
 	
@@ -358,6 +361,9 @@ jsmk.World.prototype.update = function() {
 		this.player1.facing = jsmk.playerFacingPosition.LEFT;
 		this.player2.facing = jsmk.playerFacingPosition.RIGHT;
 	}
+	
+	this.player1.update();
+	this.player2.update();
 };
 
 jsmk.World.prototype.go = function() {
@@ -377,6 +383,7 @@ jsmk.World.prototype.go = function() {
 	renderablesRegistry.register("PLAYERS", {
 		nextFrame: function() {},
 		render: function( renderTarget ) {
+			
 			world.player1.draw(renderTarget);
 		}
 	});
