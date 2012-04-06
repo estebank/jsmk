@@ -180,16 +180,15 @@ jsmk.Player.prototype.draw = function(ctx){
 	}
 	var frame = this.character.nextFrame(state);
 	this.width = frame.width;
+	
+	var renderTarget = ctx;
 	if (this.facing == jsmk.playerFacingPosition.LEFT) {
-		// Mirror sprite if player is on the right.
-		ctx.translate(ctx.canvas.width, 0);
-		ctx.scale(-1, 1);
-		ctx.drawImage(frame, ctx.canvas.width - this.position - frame.width / 2, jsmk.TOP, frame.width, frame.height);
-		ctx.translate(ctx.canvas.width, 0);
-		ctx.scale(-1, 1);
-	} else {
-		ctx.drawImage(frame, this.position - frame.width / 2, jsmk.TOP, frame.width, frame.height);
+		renderTarget = ctx.project({
+			"mirror-x": null
+		});
 	}
+	
+	renderTarget.drawImage(frame, this.position - frame.width / 2, jsmk.TOP, frame.width, frame.height);
 };
 
 jsmk.Controller = function() {
@@ -355,7 +354,9 @@ jsmk.World = function(canvas) {
 
 
 jsmk.World.prototype.draw = function() {
-	var ctx = this.canvas.getContext('2d');
+	//var ctx = this.canvas.getContext('2d');
+	var ctx = new jsmk.RenderTarget(this.canvas.getContext("2d"));
+	
 	this.map.draw(ctx);
 	
 
