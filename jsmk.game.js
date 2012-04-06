@@ -348,18 +348,9 @@ jsmk.World = function(canvas) {
 	mapImage.src = 'pic.png';
 	this.map = new jsmk.Map(mapImage);
 	this.canvas = canvas;
-	
-	//this.draw();
 };
 
-
-jsmk.World.prototype.draw = function() {
-	//var ctx = this.canvas.getContext('2d');
-	var ctx = new jsmk.RenderTarget(this.canvas.getContext("2d"));
-	
-	this.map.draw(ctx);
-	
-
+jsmk.World.prototype.update = function() {
 	if (this.player1.position < this.player2.position) {
 		this.player1.facing = jsmk.playerFacingPosition.RIGHT;
 		this.player2.facing = jsmk.playerFacingPosition.LEFT;
@@ -367,18 +358,43 @@ jsmk.World.prototype.draw = function() {
 		this.player1.facing = jsmk.playerFacingPosition.LEFT;
 		this.player2.facing = jsmk.playerFacingPosition.RIGHT;
 	}
-	this.player1.draw(ctx);
-	this.player2.draw(ctx);
 };
 
 jsmk.World.prototype.go = function() {
 	var world = this;
 	var previous_time = 0;
+	
+	var renderablesRegistry = new jsmk.RenderableObjectsRegistry(["BACKGROUND","PLAYERS"]);
+	var renderTarget = new jsmk.RenderTarget(this.canvas.getContext("2d"));
+	
+	renderablesRegistry.register("BACKGROUND", {
+		nextFrame: function(){},
+		render: function( renderTarget ) {
+			world.map.draw(renderTarget);
+		}
+	});
+	
+	renderablesRegistry.register("PLAYERS", {
+		nextFrame: function() {},
+		render: function( renderTarget ) {
+			world.player1.draw(renderTarget);
+		}
+	});
+	
+	renderablesRegistry.register("PLAYERS", {
+		nextFrame: function() {},
+		render: function( renderTarget ) {
+			world.player2.draw(renderTarget);
+		}
+	});
+	
 	(function doDraw(time){
 		webkitRequestAnimationFrame(doDraw);
 		if ((time - previous_time) > 70) {
 			previous_time = time;
-			world.draw();
+			
+			world.update();
+			renderablesRegistry.doRender(renderTarget);
 		}
 	}());
 }
