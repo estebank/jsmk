@@ -1,25 +1,5 @@
 var jsmk = jsmk || {};
 
-jsmk.Animation = function(sequence) {
-	this.sequence = sequence;
-	this.current_frame = 0;
-};
-
-jsmk.Animation.prototype.nextFrame = function() {
-	var frame = this.sequence[this.current_frame];
-	if (this.current_frame < this.sequence.length - 1) {
-		this.current_frame += 1;
-	} else {
-		this.current_frame = 0;
-	}
-
-	return frame;
-};
-
-jsmk.Animation.prototype.clear = function() {
-	this.current_frame = 0;
-};
-
 jsmk.player_states = {
 	IDLE: "stance",
 	PUNCH: "punch",
@@ -54,11 +34,13 @@ jsmk.Character = function(name, animations) {
 };
 
 jsmk.Character.prototype.nextFrame = function(player_state) {
-	return this.animations[player_state].nextFrame();
+	var animation = this.animations[player_state];
+	animation.nextFrame();
+	return animation._getFrame();
 };
 
 jsmk.Character.prototype.clearFrame = function(player_state) {
-	return this.animations[player_state].clear();
+	return this.animations[player_state].reset();
 };
 
 jsmk.buildAnimation = function(name, type, length) {
@@ -67,6 +49,7 @@ jsmk.buildAnimation = function(name, type, length) {
 		var path = name + '/' + type + '/' + n + '.gif';
 		return path;
 	};
+	
 	var images = [];
 	var i = 0;
 	if (type == jsmk.player_states.MOVE_RIGHT) {
@@ -89,7 +72,7 @@ jsmk.buildAnimation = function(name, type, length) {
 		animation[i] = new Image();
 		animation[i].src = images[i];
 	}
-	return new jsmk.Animation(animation);
+	return new jsmk.AnimationSequence(animation).createAnimation();
 };
 
 jsmk.buildCharacter = function(name, idle, move, punch, kick) {
