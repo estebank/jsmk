@@ -1,25 +1,5 @@
 var jsmk = jsmk || {};
 
-jsmk.Animation = function(sequence) {
-	this.sequence = sequence;
-	this.current_frame = 0;
-};
-
-jsmk.Animation.prototype.nextFrame = function() {
-	var frame = this.sequence[this.current_frame];
-	if (this.current_frame < this.sequence.length - 1) {
-		this.current_frame += 1;
-	} else {
-		this.current_frame = 0;
-	}
-
-	return frame;
-};
-
-jsmk.Animation.prototype.clear = function() {
-	this.current_frame = 0;
-};
-
 jsmk.player_states = {
 	IDLE: "stance",
 	PUNCH: "punch",
@@ -54,11 +34,13 @@ jsmk.Character = function(name, animations) {
 };
 
 jsmk.Character.prototype.nextFrame = function(player_state) {
-	return this.animations[player_state].nextFrame();
+	var animation = this.animations[player_state];
+	animation.nextFrame();
+	return animation._getFrame();
 };
 
 jsmk.Character.prototype.clearFrame = function(player_state) {
-	return this.animations[player_state].clear();
+	return this.animations[player_state].reset();
 };
 
 jsmk.buildAnimation = function(name, type, length) {
@@ -67,6 +49,7 @@ jsmk.buildAnimation = function(name, type, length) {
 		var path = name + '/' + type + '/' + n + '.gif';
 		return path;
 	};
+	
 	var images = [];
 	var i = 0;
 	if (type == jsmk.player_states.MOVE_RIGHT) {
@@ -89,7 +72,7 @@ jsmk.buildAnimation = function(name, type, length) {
 		animation[i] = new Image();
 		animation[i].src = images[i];
 	}
-	return new jsmk.Animation(animation);
+	return new jsmk.AnimationSequence(animation).createAnimation();
 };
 
 jsmk.buildCharacter = function(name, idle, move, punch, kick) {
@@ -187,12 +170,15 @@ jsmk.Player.prototype.move = function() {
 	}
 };
 
-jsmk.Player.prototype.draw = function(ctx){
+jsmk.Player.prototype.update = function() {
 	this.controller.tick();
 	this.move()
+};
+
+jsmk.Player.prototype.draw = function(ctx){
+	// When the sprite is mirrored, you have to change the state to write.
 	var state = this.state;
 
-	// When the sprite is mirrored, you have to change the state to write.
 	if (this.state == jsmk.player_states.MOVE_RIGHT && this.facing == jsmk.playerFacingPosition.LEFT) {
 		state = jsmk.player_states.MOVE_LEFT;
 	}
@@ -205,18 +191,18 @@ jsmk.Player.prototype.draw = function(ctx){
 	if (this.state == jsmk.player_states.MOVE_LEFT && this.facing == jsmk.playerFacingPosition.RIGHT) {
 		state = jsmk.player_states.MOVE_LEFT;
 	}
+	
 	var frame = this.character.nextFrame(state);
 	this.width = frame.width;
+	
+	var renderTarget = ctx;
 	if (this.facing == jsmk.playerFacingPosition.LEFT) {
-		// Mirror sprite if player is on the right.
-		ctx.translate(ctx.canvas.width, 0);
-		ctx.scale(-1, 1);
-		ctx.drawImage(frame, ctx.canvas.width - this.position - frame.width / 2, jsmk.TOP, frame.width, frame.height);
-		ctx.translate(ctx.canvas.width, 0);
-		ctx.scale(-1, 1);
-	} else {
-		ctx.drawImage(frame, this.position - frame.width / 2, jsmk.TOP, frame.width, frame.height);
+		renderTarget = ctx.project({
+			"mirror-x": null
+		});
 	}
+	
+	renderTarget.drawImage(frame, this.position - frame.width / 2, jsmk.TOP, frame.width, frame.height);
 };
 
 jsmk.Controller = function() {
@@ -376,19 +362,13 @@ jsmk.World = function(canvas) {
 	mapImage.src = 'pic.png';
 	this.map = new jsmk.Map(mapImage);
 	this.canvas = canvas;
-	
-	//this.draw();
 };
 
 jsmk.World.prototype.playersContact = function() {
 	return Math.abs(this.player1.position - this.player2.position) < 40;
 };
 
-jsmk.World.prototype.draw = function() {
-	var ctx = this.canvas.getContext('2d');
-	this.map.draw(ctx);
-
-
+jsmk.World.prototype.update = function() {
 	if (this.player1.position < this.player2.position) {
 		this.player1.facing = jsmk.playerFacingPosition.RIGHT;
 		this.player2.facing = jsmk.playerFacingPosition.LEFT;
@@ -396,18 +376,47 @@ jsmk.World.prototype.draw = function() {
 		this.player1.facing = jsmk.playerFacingPosition.LEFT;
 		this.player2.facing = jsmk.playerFacingPosition.RIGHT;
 	}
-	this.player1.draw(ctx);
-	this.player2.draw(ctx);
+	
+	this.player1.update();
+	this.player2.update();
 };
 
 jsmk.World.prototype.go = function() {
 	var world = this;
 	var previous_time = 0;
+	
+	var renderablesRegistry = new jsmk.RenderableObjectsRegistry(["BACKGROUND","PLAYERS"]);
+	var renderTarget = new jsmk.RenderTarget(this.canvas.getContext("2d"));
+	
+	renderablesRegistry.register("BACKGROUND", {
+		nextFrame: function(){},
+		render: function( renderTarget ) {
+			world.map.draw(renderTarget);
+		}
+	});
+	
+	renderablesRegistry.register("PLAYERS", {
+		nextFrame: function() {},
+		render: function( renderTarget ) {
+			
+			world.player1.draw(renderTarget);
+		}
+	});
+	
+	renderablesRegistry.register("PLAYERS", {
+		nextFrame: function() {},
+		render: function( renderTarget ) {
+			world.player2.draw(renderTarget);
+		}
+	});
+	
 	(function doDraw(time){
 		webkitRequestAnimationFrame(doDraw);
 		if ((time - previous_time) > 70) {
 			previous_time = time;
-			world.draw();
+			
+			world.update();
+			renderablesRegistry.doRender(renderTarget);
 		}
 	}());
 }
