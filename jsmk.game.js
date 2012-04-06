@@ -121,13 +121,14 @@ jsmk.playerFacingPosition = {
 /** @const */
 jsmk.MOVEMENT_DELTA = 5;
 
-jsmk.Player = function(character, controller, position, opt_facing) {
+jsmk.Player = function(character, controller, position, opt_facing, world) {
 	this.character = character;
 	this.controller = controller;
 	this.position = position;
 	this.state = jsmk.player_states.IDLE;
 	this.facing = opt_facing !== undefined ? opt_facing : jsmk.playerFacingPosition.RIGHT;
 	this.width = 40;//this.character.nextFrame(jsmk.player_states.IDLE).width;
+	this.world = world;
 
 	this.controller.bind(this);
 };
@@ -155,14 +156,22 @@ jsmk.Player.prototype.eventListener = function(event) {
 	}
 };
 
+jsmk.Player.prototype.blockedLeft = function() {
+	return (!(this.position >= this.width / 2) || this.world.playersContact() && (this.facing == jsmk.playerFacingPosition.LEFT));
+};
+
+jsmk.Player.prototype.blockedRight = function() {
+	return (!(this.position <= 395 - this.width / 2) || this.world.playersContact() && (this.facing == jsmk.playerFacingPosition.RIGHT));
+};
+
 jsmk.Player.prototype.moveLeft = function() {
-	if (this.position >= this.width / 2) {
+	if (!this.blockedLeft()) {
 		this.position -= jsmk.MOVEMENT_DELTA;
 	}
 };
 
 jsmk.Player.prototype.moveRight = function() {
-	if (this.position <= 395 - this.width / 2) {
+	if (!this.blockedRight()) {
 		this.position += jsmk.MOVEMENT_DELTA;
 	}
 };
@@ -183,6 +192,7 @@ jsmk.Player.prototype.draw = function(ctx){
 	this.move()
 	var state = this.state;
 
+	// When the sprite is mirrored, you have to change the state to write.
 	if (this.state == jsmk.player_states.MOVE_RIGHT && this.facing == jsmk.playerFacingPosition.LEFT) {
 		state = jsmk.player_states.MOVE_LEFT;
 	}
@@ -359,8 +369,8 @@ jsmk.defaultPositionPlayer1 = 80;
 jsmk.defaultPositionPlayer2 = 300;
 
 jsmk.World = function(canvas) {
-	this.player1 = new jsmk.Player(jsmk.characters.Kano(), new jsmk.KeyboardController(), jsmk.defaultPositionPlayer1, jsmk.playerFacingPosition.RIGHT);
-	this.player2 = new jsmk.Player(jsmk.characters.SubZero(), new jsmk.PingPongController(), jsmk.defaultPositionPlayer2, jsmk.playerFacingPosition.LEFT);
+	this.player1 = new jsmk.Player(jsmk.characters.Kano(), new jsmk.KeyboardController(), jsmk.defaultPositionPlayer1, jsmk.playerFacingPosition.RIGHT, this);
+	this.player2 = new jsmk.Player(jsmk.characters.SubZero(), new jsmk.PingPongController(), jsmk.defaultPositionPlayer2, jsmk.playerFacingPosition.LEFT, this);
 	
 	var mapImage = new Image();
 	mapImage.src = 'pic.png';
@@ -370,11 +380,14 @@ jsmk.World = function(canvas) {
 	//this.draw();
 };
 
+jsmk.World.prototype.playersContact = function() {
+	return Math.abs(this.player1.position - this.player2.position) < 40;
+};
 
 jsmk.World.prototype.draw = function() {
 	var ctx = this.canvas.getContext('2d');
 	this.map.draw(ctx);
-	
+
 
 	if (this.player1.position < this.player2.position) {
 		this.player1.facing = jsmk.playerFacingPosition.RIGHT;
